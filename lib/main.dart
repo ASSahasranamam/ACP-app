@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:contacts_service/contacts_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/cupertino.dart';
+import 'contactsPage.dart';
 
 void main() {
   runApp(MyApp());
@@ -26,6 +27,9 @@ class MyApp extends StatelessWidget {
         '/login': (context) => MyHomePage(title: "Login"),
         // When navigating to the "/second" route, build the SecondScreen widget.
         '/second': (context) => RegisterPage(title: "Register"),
+/*
+        '/contactsList' : (context) => ContactPage
+*/
       },
 
       theme: ThemeData(
@@ -379,8 +383,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
                                         // final PermissionStatus permissionStatus = await _getPermission();
                                         // if (permissionStatus == PermissionStatus.granted) {
-                                        //   // Navigator.push(
-                                        //       // context, MaterialPageRoute(builder: (context) => ContactsPage()));
+                                          Navigator.push(
+                                              context, MaterialPageRoute(builder: (context) => ContactsPage( _contacts)));
                                         // } else {
                                         //If permissions have been denied show standard cupertino alert dialog
                                         // showDialog(
