@@ -8,9 +8,58 @@ import 'package:contacts_service/contacts_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/cupertino.dart';
 import 'contactsPage.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import 'dart:async';
 
-void main() {
+void main() async {
   runApp(MyApp());
+
+  // Avoid errors caused by flutter upgrade.
+// Importing 'package:flutter/widgets.dart' is required.
+  WidgetsFlutterBinding.ensureInitialized();
+// Open the database and store the reference.
+  final database = openDatabase(
+    // Set the path to the database. Note: Using the `join` function from the
+    // `path` package is best practice to ensure the path is correctly
+    // constructed for each platform.
+    join(await getDatabasesPath(), 'contacts_database.db'),
+    // When the database is first created, create a table to store dogs.
+    onCreate: (db, version) {
+      // Run the CREATE TABLE statement on the database.
+      return db.execute(
+        'CREATE TABLE contacts(id INTEGER PRIMARY KEY, name TEXT, phones TEXT, emails TEXT)',
+      );
+    },
+    // Set the version. This executes the onCreate function and provides a
+    // path to perform database upgrades and downgrades.
+    version: 1,
+  );
+
+
+  Future<void> deleteDog() async {
+    // Get a reference to the database.
+    final db = await database;
+
+    // Remove the Dog from the database.
+    await db.delete(
+      'contacts'
+      // Use a `where` clause to delete a specific dog.
+      // Pass the Dog's id as a whereArg to prevent SQL injection.
+    );
+  }
+
+
+  var newContactTest = ContactsInterface(
+      id: 123.toString(),
+      name: "AdiTest",
+      phones: "['1234','2985']",
+      emails: "['1234','2985']"
+  );
+
+  // await insertDog(newContactTest);
+  print("Get Contacts");
+  // print(await getContactInterfaces());
 }
 
 class MyApp extends StatelessWidget {
@@ -70,7 +119,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
-  void _incrementCounter() {
+  void permissionsStatus() {
     setState(() {
       // This call to setState tells the Flutter framework that something has
       // changed in this State, which causes it to rerun the build method below
@@ -78,6 +127,7 @@ class _MyHomePageState extends State<MyHomePage> {
       // _counter without calling setState(), then the build method would not be
       // called again, and so nothing would appear to happen.
       _counter++;
+      Permission.contacts.request();
     });
   }
 
@@ -185,33 +235,233 @@ class _MyHomePageState extends State<MyHomePage> {
   //   _getMutualContacts(userEmail);
   // }
   //
-  Iterable<Contact> _contacts = [];
+  List<Contact> _contacts = [];
 
+  Future<void> deleteDog() async {
+
+    final database = openDatabase(
+      // Set the path to the database. Note: Using the `join` function from the
+      // `path` package is best practice to ensure the path is correctly
+      // constructed for each platform.
+      join(await getDatabasesPath(), 'contacts_database.db'),
+    );
+
+    // Get a reference to the database.
+    final db = await database;
+
+    // Remove the Dog from the database.
+    await db.delete(
+        'contacts'
+      // Use a `where` clause to delete a specific dog.
+      // Pass the Dog's id as a whereArg to prevent SQL injection.
+    );
+
+  }
+  //
+  // final PermissionHandler _permissionHandler = PermissionHandler();
+  //
+  // Future<bool> _requestPermission(PermissionGroup permission) async {
+  //   var result = await _permissionHandler.requestPermissions([permission]);
+  //   if (result[permission] == PermissionStatus.granted) {
+  //     return true;
+  //   }
+  //   return false;
+  // }
   @override
   void initState() {
+    // deleteDog();
+    permissionsStatus();
     getContacts();
+
     super.initState();
   }
+
+
 
   Future<void> getContacts() async {
     //Make sure we already have permissions for contacts when we get to this
     //page, so we can just retrieve it
+
+    // await _getPermission();
+    final database = openDatabase(
+      // Set the path to the database. Note: Using the `join` function from the
+      // `path` package is best practice to ensure the path is correctly
+      // constructed for each platform.
+      join(await getDatabasesPath(), 'contacts_database.db'),
+      // When the database is first created, create a table to store dogs.
+      onCreate: (db, version) {
+        // Run the CREATE TABLE statement on the database.
+        return db.execute(
+          'CREATE TABLE contacts(id INTEGER PRIMARY KEY, name TEXT, phones TEXT, emails TEXT)',
+        );
+      },
+      // Set the version. This executes the onCreate function and provides a
+      // path to perform database upgrades and downgrades.
+      version: 1,
+    );
+
+
+
+
+    var emailArray = [];
+    var phoneArray = [];
+    var hashCodeArray = [];
+    var contactDetailsname ;
+    var contactDetailsHashcode;
+    var contactDetailsphones;
+    var contactDetailsemails;
+
+    var contactAddress;
+
     final Iterable<Contact> contacts = await ContactsService.getContacts();
+
+    Future<List<ContactsInterface>> getContactInterfaces() async {
+      final database = openDatabase(
+        // Set the path to the database. Note: Using the `join` function from the
+        // `path` package is best practice to ensure the path is correctly
+        // constructed for each platform.
+        join(await getDatabasesPath(), 'contacts_database.db'),
+      );
+
+      // Get a reference to the database.
+      final db = await database;
+
+      // Query the table for all The Dogs.
+      final List<Map<String, dynamic>> maps = await db.query('contacts');
+
+      // Convert the List<Map<String, dynamic> into a List<Dog>.
+      return List.generate(maps.length, (i) {
+        return ContactsInterface(
+            id: maps[i]['id'].toString(),
+            name: maps[i]['name'],
+            phones: maps[i]['[phones]'],
+            emails: maps[i]['[emails]']
+
+        );
+      });
+    }
+
+
     setState(() {
-      _contacts = contacts;
+      _contacts = contacts.toList();
       print(_contacts);
-        for (var i in _contacts) {
-          print(i.toString());
-          print(i.displayName);
-          print(i.phones);
-          for (var j in i.phones!){
-            print(j.value);
+      for (var i in _contacts) {
+        emailArray = [];
+        // hashCodeDeleteData = i.hashCode.toString();
+        phoneArray = [];
+        hashCodeArray = [];
+        contactDetailsname = i.displayName.toString();
+        contactDetailsHashcode = i.hashCode.toString();
+        if (i.emails!.isEmpty) {
+          contactDetailsemails = " ";
+        } else {
+          for (var email in i.emails!) {
+            emailArray.add(email.value);
+            print("HashCode " + (i.hashCode).toString());
           }
-          for (var j in i.postalAddresses!){
-            print(j.street.toString());
-          }        }
+
+          contactDetailsemails = (i.emails!.elementAt(0).value);
+        }
+
+        if (i.phones!.isEmpty) {
+          contactDetailsphones = null;
+        } else {
+          for (var phone in i.phones!) {
+            phoneArray.add(phone.value);
+          }
+          contactDetailsphones = (i.phones!.elementAt(0).value);
+        }
+
+        print(phoneArray.toString());
+        var newC = ContactsInterface(
+            id: i.hashCode.toString(),
+            name: i.displayName.toString(),
+            phones: phoneArray.toString(),
+            emails: emailArray.toString());
+        insertDog(newC);
+      }
+      print("fook this");
+
     });
+    print(await getContactInterfaces());
+
+
   }
+
+  // A method that retrieves all the dogs from the dogs table.
+  // Future<List<ContactsInterface>> getContactInterfaces() async {
+  //   final database = openDatabase(
+  //     // Set the path to the database. Note: Using the `join` function from the
+  //     // `path` package is best practice to ensure the path is correctly
+  //     // constructed for each platform.
+  //     join(await getDatabasesPath(), 'contacts_database.db'),
+  //   );
+  //
+  //   // Get a reference to the database.
+  //   final db = await database;
+  //
+  //   // Query the table for all The Dogs.
+  //   final List<Map<String, dynamic>> maps = await db.query('contacts');
+  //
+  //   // Convert the List<Map<String, dynamic> into a List<Dog>.
+  //   return List.generate(maps.length, (i) {
+  //     return ContactsInterface(
+  //         id: maps[i]['id'].toString(),
+  //         name: maps[i]['name'],
+  //         phones: maps[i]['[phones]'],
+  //         emails: maps[i]['[emails]']
+  //
+  //     );
+  //   });
+  // }
+
+  Future<void> updateDog(ContactsInterface cInt) async {
+    // Get a reference to the database.
+    final database = openDatabase(
+      // Set the path to the database. Note: Using the `join` function from the
+      // `path` package is best practice to ensure the path is correctly
+      // constructed for each platform.
+      join(await getDatabasesPath(), 'contacts_database.db'),
+    );
+
+
+    final db = await database;
+
+
+    // Update the given Dog.
+    await db.update(
+      'contacts',
+      cInt.toMap(),
+      // Ensure that the Dog has a matching id.
+      where: 'id = ?',
+      // Pass the Dog's id as a whereArg to prevent SQL injection.
+      whereArgs: [cInt.id],
+    );
+  }
+
+
+  Future<void> insertDog(ContactsInterface cInt) async {
+    // Get a reference to the database.
+    final database = openDatabase(
+      // Set the path to the database. Note: Using the `join` function from the
+      // `path` package is best practice to ensure the path is correctly
+      // constructed for each platform.
+      join(await getDatabasesPath(), 'contacts_database.db'),
+    );
+
+    final db = await database;
+
+    // Insert the Dog into the correct table. You might also specify the
+    // `conflictAlgorithm` to use in case the same dog is inserted twice.
+    //
+    // In this case, replace any previous data.
+    await db.insert(
+      'contacts',
+      cInt.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
 
   //Check contacts permission
   Future<PermissionStatus> _getPermission() async {
@@ -495,6 +745,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
   var _image;
   final picker = ImagePicker();
+
+
 
   Future getImage() async {
     final pickedFile = await picker.getImage(source: ImageSource.gallery);

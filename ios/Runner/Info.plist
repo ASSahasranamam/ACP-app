@@ -49,5 +49,7 @@
 	<false/>
 	<key>NSContactsUsageDescription</key>
 	<string>Please Give me Contact Permissions</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Local Network Permissions for contacts Sync to DB </string>
 </dict>
 </plist>
