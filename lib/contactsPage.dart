@@ -11,6 +11,8 @@ import 'package:http/http.dart' as http;
 import 'package:listentocontacts/listentocontacts.dart';
 import 'package:sqflite/sqflite.dart';
 
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
 // void DbConnect(){
 //
 //   var db = await Db.create("mongodb+srv://<user>:<password>@<host>:<port>/<database-name>?<parameters>");
@@ -133,6 +135,41 @@ class ContactsPageState extends State<ContactsPage> {
   }
 
 
+  readFromDB() async {
+    final database = openDatabase(
+      // Set the path to the database. Note: Using the `join` function from the
+      // `path` package is best practice to ensure the path is correctly
+      // constructed for each platform.
+        join(await getDatabasesPath(), 'newDB.db'),
+    // When the database is first created, create a table to store dogs.
+        onCreate: (db, version) {
+    // Run the CREATE TABLE statement on the database.
+    return db.execute(
+    'CREATE TABLE newContacts(id TEXT PRIMARY KEY, name TEXT, phones TEXT, emails TEXT)',
+    );
+    },
+    // Set the version. This executes the onCreate function and provides a
+    // path to perform database upgrades and downgrades.
+    version: 1,
+    );
+      // Get a reference to the database.
+      final db = await database;
+
+      // Query the table for all The Dogs.
+      final List<Map<String, dynamic>> maps = await db.query('newContacts');
+
+      // Convert the List<Map<String, dynamic> into a List<Dog>.
+      return List.generate(maps.length, (i) {
+        return ContactsInterface(
+            id: maps[i]['id'].toString(),
+            name: maps[i]['name'],
+            phones: maps[i]['phones'],
+            emails: maps[i]['emails']
+        );
+      });
+
+  }
+
   @override
   void initState(){
     super.initState();
@@ -142,18 +179,48 @@ class ContactsPageState extends State<ContactsPage> {
       print("change");
     });
 
-    // Listentocontacts().onContactsChanged.listen((event) {
-    //   print("LISTENIN TO CONTACT CHANGES");
-    //   prepareAndSendPostReq();
-    //
-    //   setState(() {});
-    // });
+    Listentocontacts().onContactsChanged.listen((event) {
+      print("LISTENIN TO CONTACT CHANGES");
+
+      setState(() {
+
+        // prepareAndSendPostReq();
+
+      });
+    });
     // prepareAndSendPostReq();
     setState(() {
-      prepareAndSendPostReq();
+      sendFromLocalDB();
+
+
+      // prepareAndSendPostReq();
       // send2Contacts("title");
     });
   }
+
+  sendFromLocalDB() async {
+
+    List contactsFromDB = await readFromDB();
+
+    for(var i in contactsFromDB){
+      String url =
+          'http://adinodejs.herokuapp.com/users/localDBData';
+
+      Map<String, String> headers = {"Content-type": "application/json"};
+      String json =
+          '{"name":  " ${i.name}","id":  " ${i.id}","userEmail": "iphoneTest", "userNumber": "iphoneTest"' +
+              ', "emails":  " ${i.emails}","phoneNumbers":"${i.phones}"}';
+      // make POST request
+
+      http.Response response = await http.post(Uri.parse(url), headers: headers, body: json);
+
+
+      print(response.body);
+    }
+
+}
+
+
   filterContext(){
     List<Contact> _contacts = [];
     _contacts.addAll(contacts);
@@ -220,11 +287,10 @@ class ContactsPageState extends State<ContactsPage> {
     );
   }
 }
-
 class ContactsInterface {
+  final String id;
   final String name;
   final String phones;
-  final String id;
   final String emails;
 
   ContactsInterface({
@@ -234,14 +300,12 @@ class ContactsInterface {
     required this.emails
   });
 
-  // Convert a Dog into a Map. The keys must correspond to the names of the
-  // columns in the database.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'name': name,
-      'phones': phones,
-      'emails': emails
+      'phones': phones.toString(),
+      'emails': emails.toString()
     };
   }
 
@@ -251,5 +315,4 @@ class ContactsInterface {
   String toString() {
     return 'ContactsInterface{id: $id, name: $name, phones: $phones, emails: $emails}';
   }
-
 }

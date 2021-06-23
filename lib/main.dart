@@ -16,19 +16,16 @@ void main() async {
   runApp(MyApp());
 
   // Avoid errors caused by flutter upgrade.
-// Importing 'package:flutter/widgets.dart' is required.
-  WidgetsFlutterBinding.ensureInitialized();
-// Open the database and store the reference.
   final database = openDatabase(
     // Set the path to the database. Note: Using the `join` function from the
     // `path` package is best practice to ensure the path is correctly
     // constructed for each platform.
-    join(await getDatabasesPath(), 'contacts_database.db'),
+    join(await getDatabasesPath(), 'newDB.db'),
     // When the database is first created, create a table to store dogs.
     onCreate: (db, version) {
       // Run the CREATE TABLE statement on the database.
       return db.execute(
-        'CREATE TABLE contacts(id INTEGER PRIMARY KEY, name TEXT, phones TEXT, emails TEXT)',
+        'CREATE TABLE newContacts(id TEXT PRIMARY KEY, name TEXT, phones TEXT, emails TEXT)',
       );
     },
     // Set the version. This executes the onCreate function and provides a
@@ -36,31 +33,137 @@ void main() async {
     version: 1,
   );
 
+  // Define a function that inserts dogs into the database
+  Future<void> insertDog(ContactsInterface cint) async {
+    // Get a reference to the database.
+    final db = await database;
 
-  Future<void> deleteDog() async {
+    // Insert the Dog into the correct table. You might also specify the
+    // `conflictAlgorithm` to use in case the same dog is inserted twice.
+    //
+    // In this case, replace any previous data.
+    await db.insert(
+      'newContacts',
+      cint.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // A method that retrieves all the dogs from the dogs table.
+  Future<List<ContactsInterface>> getCints() async {
+    // Get a reference to the database.
+    final db = await database;
+
+    // Query the table for all The Dogs.
+    final List<Map<String, dynamic>> maps = await db.query('newContacts');
+
+    // Convert the List<Map<String, dynamic> into a List<Dog>.
+    return List.generate(maps.length, (i) {
+      return ContactsInterface(
+        id: maps[i]['id'].toString(),
+        name: maps[i]['name'],
+        phones: maps[i]['phones'],
+        emails: maps[i]['emails']
+      );
+    });
+  }
+
+  Future<void> updateDog(ContactsInterface cint) async {
+    // Get a reference to the database.
+    final db = await database;
+
+    // Update the given Dog.
+    await db.update(
+      'newContacts',
+      cint.toMap(),
+      // Ensure that the Dog has a matching id.
+      where: 'id = ?',
+      // Pass the Dog's id as a whereArg to prevent SQL injection.
+      whereArgs: [cint.id],
+    );
+  }
+
+  Future<void> deleteDog(int id) async {
     // Get a reference to the database.
     final db = await database;
 
     // Remove the Dog from the database.
     await db.delete(
-      'contacts'
+      'newContacts',
       // Use a `where` clause to delete a specific dog.
+      where: 'id = ?',
       // Pass the Dog's id as a whereArg to prevent SQL injection.
+      whereArgs: [id],
     );
   }
 
+  // Create a Dog and add it to the dogs table
+  // var fido = ContactsInterface(
+  //   id: 0,
+  //   name: 'Fido',
+  //   phones: ["123", "325"].toString(),
+  // );
 
-  var newContactTest = ContactsInterface(
-      id: 123.toString(),
-      name: "AdiTest",
-      phones: "['1234','2985']",
-      emails: "['1234','2985']"
-  );
+  // await insertDog(fido);
+  Iterable<Contact> contacts = await ContactsService.getContacts();
+  List<Contact> _contacts = contacts.toList();
 
-  // await insertDog(newContactTest);
-  print("Get Contacts");
-  // print(await getContactInterfaces());
+  for( var i in _contacts){
+    var contactDetailsphones = [];
+    var phoneArray = [] ;
+    var emailArray = [] ;
+
+    if (i.phones!.isEmpty) {
+      phoneArray = ["null"];
+    } else {
+      for (var phone in i.phones!) {
+        phoneArray.add(phone.value);
+      }
+      // contactDetailsphones = (i.phones!.elementAt(0).value.toString()) as List;
+    }
+
+    if (i.emails!.isEmpty) {
+      emailArray = ["null"];
+    } else {
+      for (var email in i.emails!) {
+        emailArray.add(email.value);
+      }
+      // contactDetailsphones = (i.phones!.elementAt(0).value.toString()) as List;
+    }
+
+
+    var fido = ContactsInterface(
+      id: i.hashCode.toString(),
+      name: i.displayName.toString(),
+      phones: phoneArray.toString(),
+      emails: emailArray.toString(),
+
+    );
+    print(fido.id);
+    insertDog(fido);
+
+  }
+  // Now, use the method above to retrieve all the dogs.
+  print(await getCints()); // Prints a list that include Fido.
+
+  // // Update Fido's age and save it to the database.
+  // fido = ContactsInterface(
+  //   id: fido.id,
+  //   name: fido.name,
+  //   phones: fido.phones,
+  // );
+  // await updateDog(fido);
+
+  // Print the updated results.
+  // print(await getCints()); // Prints Fido with age 42.
+
+  // Delete Fido from the database.
+  // await deleteDog(fido.id);
+  //
+  // // Print the list of dogs (empty).
+  // print(await getCints());
 }
+
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -283,24 +386,6 @@ class _MyHomePageState extends State<MyHomePage> {
     //page, so we can just retrieve it
 
     // await _getPermission();
-    final database = openDatabase(
-      // Set the path to the database. Note: Using the `join` function from the
-      // `path` package is best practice to ensure the path is correctly
-      // constructed for each platform.
-      join(await getDatabasesPath(), 'contacts_database.db'),
-      // When the database is first created, create a table to store dogs.
-      onCreate: (db, version) {
-        // Run the CREATE TABLE statement on the database.
-        return db.execute(
-          'CREATE TABLE contacts(id INTEGER PRIMARY KEY, name TEXT, phones TEXT, emails TEXT)',
-        );
-      },
-      // Set the version. This executes the onCreate function and provides a
-      // path to perform database upgrades and downgrades.
-      version: 1,
-    );
-
-
 
 
     var emailArray = [];
@@ -315,31 +400,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final Iterable<Contact> contacts = await ContactsService.getContacts();
 
-    Future<List<ContactsInterface>> getContactInterfaces() async {
-      final database = openDatabase(
-        // Set the path to the database. Note: Using the `join` function from the
-        // `path` package is best practice to ensure the path is correctly
-        // constructed for each platform.
-        join(await getDatabasesPath(), 'contacts_database.db'),
-      );
-
-      // Get a reference to the database.
-      final db = await database;
-
-      // Query the table for all The Dogs.
-      final List<Map<String, dynamic>> maps = await db.query('contacts');
-
-      // Convert the List<Map<String, dynamic> into a List<Dog>.
-      return List.generate(maps.length, (i) {
-        return ContactsInterface(
-            id: maps[i]['id'].toString(),
-            name: maps[i]['name'],
-            phones: maps[i]['[phones]'],
-            emails: maps[i]['[emails]']
-
-        );
-      });
-    }
 
 
     setState(() {
@@ -373,17 +433,13 @@ class _MyHomePageState extends State<MyHomePage> {
         }
 
         print(phoneArray.toString());
-        var newC = ContactsInterface(
-            id: i.hashCode.toString(),
-            name: i.displayName.toString(),
-            phones: phoneArray.toString(),
-            emails: emailArray.toString());
-        insertDog(newC);
-      }
+
       print("fook this");
 
-    });
-    print(await getContactInterfaces());
+    }
+    }
+    );
+    // print(await getContactInterfaces());
 
 
   }
